@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 openai
-langchain
-langchain-pinecone
-pinecone-client
+langchain-core>=0.3.0
+langchain-pinecone>=0.1.0
+pinecone-client>=5.0.0
 tiktoken

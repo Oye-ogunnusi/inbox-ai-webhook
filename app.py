@@ -5,7 +5,8 @@ from typing import List
 from openai import OpenAI
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
-from langchain.schema import Document
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 
 # --------- FastAPI app ----------
 app = FastAPI()
@@ -31,19 +32,29 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
     resp = client.embeddings.create(
         model="text-embedding-3-large",
         input=texts,
-        dimensions=2048
+        dimensions=2048,
     )
     return [d.embedding for d in resp.data]
 
 
+# ---- LangChain Embeddings wrapper for PineconeVectorStore ----
+class OpenAI2048Embeddings(Embeddings):
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return embed_texts(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return embed_texts([text])[0]
+
+
+embedding_model = OpenAI2048Embeddings()
+
 # ---- LangChain Pinecone vectorstore ----
 # text_key="text" is what we will use when storing docs
 vectorstore = PineconeVectorStore(
-    pinecone_index=index,
-    embedding=embed_texts,
-    text_key="text"
+    index=index,
+    embedding=embedding_model,
+    text_key="text",
 )
-
 
 
 @app.post("/triage")
@@ -59,7 +70,9 @@ async def triage(request: Request):
     # 1) Retrieve similar memory from Pinecone
     try:
         docs = vectorstore.similarity_search(email_text, k=3)
-        memory_snippets = "\n\n---\n\n".join([d.page_content for d in docs]) if docs else ""
+        memory_snippets = "\n\n---\n\n".join(
+            [d.page_content for d in docs]
+        ) if docs else ""
     except Exception:
         memory_snippets = ""
 
@@ -99,7 +112,10 @@ Reply in plain text (no markdown).
 
     # 3) Store a new summary as memory
     try:
-        summary_prompt = f"Summarise this email in 1–2 sentences for future context:\n\n{email_text}"
+        summary_prompt = (
+            "Summarise this email in 1–2 sentences for future context:\n\n"
+            f"{email_text}"
+        )
         summary_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": summary_prompt}],
@@ -110,7 +126,7 @@ Reply in plain text (no markdown).
             page_content=summary,
             metadata={
                 "sender": sender,
-                "subject": subject
+                "subject": subject,
             },
         )
 
