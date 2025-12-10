@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 import os
 from typing import List
 
@@ -10,6 +10,11 @@ from langchain_core.embeddings import Embeddings
 
 # --------- FastAPI app ----------
 app = FastAPI()
+
+# --------- Health check route ----------
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "Inbox AI webhook is running"}
 
 # --------- OpenAI client ----------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -49,7 +54,6 @@ class OpenAI2048Embeddings(Embeddings):
 embedding_model = OpenAI2048Embeddings()
 
 # ---- LangChain Pinecone vectorstore ----
-# text_key="text" is what we will use when storing docs
 vectorstore = PineconeVectorStore(
     index=index,
     embedding=embedding_model,
@@ -57,8 +61,35 @@ vectorstore = PineconeVectorStore(
 )
 
 
+def store_memory(email_text: str, sender: str, subject: str):
+    """Background task: summarise and store in Pinecone."""
+    try:
+        summary_prompt = (
+            "Summarise this email in 1–2 sentences for future context:\n\n"
+            f"{email_text}"
+        )
+        summary_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": summary_prompt}],
+        )
+        summary = summary_resp.choices[0].message.content.strip()
+
+        doc = Document(
+            page_content=summary,
+            metadata={
+                "sender": sender,
+                "subject": subject,
+            },
+        )
+
+        vectorstore.add_documents([doc])
+    except Exception:
+        # Ignore background errors
+        pass
+
+
 @app.post("/triage")
-async def triage(request: Request):
+async def triage(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
 
     subject = data.get("subject", "")
@@ -67,7 +98,7 @@ async def triage(request: Request):
 
     email_text = f"From: {sender}\nSubject: {subject}\n\n{body}"
 
-    # 1) Retrieve similar memory from Pinecone
+    # 1) Retrieve similar memory from Pinecone (still in the main path)
     try:
         docs = vectorstore.similarity_search(email_text, k=3)
         memory_snippets = "\n\n---\n\n".join(
@@ -110,29 +141,7 @@ Reply in plain text (no markdown).
 
     reply_text = chat_resp.choices[0].message.content
 
-    # 3) Store a new summary as memory
-    try:
-        summary_prompt = (
-            "Summarise this email in 1–2 sentences for future context:\n\n"
-            f"{email_text}"
-        )
-        summary_resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": summary_prompt}],
-        )
-        summary = summary_resp.choices[0].message.content.strip()
-
-        doc = Document(
-            page_content=summary,
-            metadata={
-                "sender": sender,
-                "subject": subject,
-            },
-        )
-
-        vectorstore.add_documents([doc])
-    except Exception:
-        # Don't break the reply if memory write fails
-        pass
+    # 3) Schedule memory write in the background (non-blocking)
+    background_tasks.add_task(store_memory, email_text, sender, subject)
 
     return {"reply_text": reply_text}
