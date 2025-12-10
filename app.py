@@ -104,13 +104,21 @@ Sign off with 'Best,' and no placeholder brackets.
 Reply in plain text (no markdown).
 """
 
-    chat_resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
+    # MAIN OpenAI call – now protected
+    try:
+        chat_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+    except Exception as e:
+        # Return a clear error instead of 500
+        return {
+            "error": "OpenAI chat completion failed",
+            "details": str(e),
+        }
 
     reply_text = chat_resp.choices[0].message.content
 
@@ -136,6 +144,7 @@ Reply in plain text (no markdown).
 
         vectorstore.add_documents([doc])
     except Exception:
-        pass  # Do not block reply if memory fails
+        # Don't break the reply if memory write fails
+        pass
 
     return {"reply_text": reply_text}
