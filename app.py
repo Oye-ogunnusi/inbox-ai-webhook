@@ -4,7 +4,7 @@ from typing import List
 
 from openai import OpenAI
 from pinecone import Pinecone
-from langchain.vectorstores import Pinecone as LangPinecone
+from langchain_pinecone import PineconeVectorStore
 from langchain.schema import Document
 
 # --------- FastAPI app ----------
@@ -38,7 +38,12 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
 
 # ---- LangChain Pinecone vectorstore ----
 # text_key="text" is what we will use when storing docs
-vectorstore = LangPinecone(index, embed_texts, text_key="text")
+vectorstore = PineconeVectorStore(
+    pinecone_index=index,
+    embedding=embed_texts,
+    text_key="text"
+)
+
 
 
 @app.post("/triage")
