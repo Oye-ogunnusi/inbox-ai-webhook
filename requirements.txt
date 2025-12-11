@@ -1,6 +1,7 @@
-fastapi 
-uvicorn 
-openai 
-langchain 
-pinecone 
+fastapi
+uvicorn
+openai
+langchain
+pinecone
 tiktoken
+httpx
