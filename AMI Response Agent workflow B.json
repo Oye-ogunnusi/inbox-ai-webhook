@@ -1,0 +1,68 @@
+{
+  "name": "AMI Response Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "05c100ad-3c40-44e2-98d2-1ec39c7ff6a7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -192,
+        48
+      ],
+      "id": "7add995f-e0df-4ef7-9ccd-72f77171d1bb",
+      "name": "Webhook",
+      "webhookId": "05c100ad-3c40-44e2-98d2-1ec39c7ff6a7"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json[\"body\"][\"to\"]}}\n",
+        "subject": "={{$json[\"body\"][\"subject\"]}}\n",
+        "message": "={{$json[\"body\"][\"body\"]}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        128
+      ],
+      "id": "4c90b03a-e55f-45c7-bd71-7670eb7050be",
+      "name": "Send Response",
+      "webhookId": "cfc8b83e-9a36-4892-a249-4682bb446b1e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uQlQHD3oEslf0JjW",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c4d6d269-215f-4f4b-84e6-effbd6d4b5d7",
+  "meta": {
+    "instanceId": "ec8b9bd1a29970d64c009c4a0bcf22e2681a83b281786491333930f8f07d7035"
+  },
+  "id": "cYzbVdcUaC2OCpMz",
+  "tags": []
+}

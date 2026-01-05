@@ -1,0 +1,256 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "includeSpamTrash": false,
+          "q": "category: primary -category: promotions -category: social -category: updates",
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        -32
+      ],
+      "id": "08d8e3f3-a9cc-4c1c-82de-d1529c67ca2d",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uQlQHD3oEslf0JjW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node[\"Gmail Trigger\"].json[\"From\"].includes('<') \n    ? $node[\"Gmail Trigger\"].json[\"From\"].match(/<(.*?)>/)[1] \n    : $node[\"Gmail Trigger\"].json[\"From\"] \n}}\n",
+        "subject": "=\n{{ $node[\"HTTP Request Sending Email\"].json[\"reply_text\"].split('\\n')[0].replace('Subject: ', '') }}\n",
+        "message": "={{ $node[\"HTTP Request Sending Email\"].json[\"reply_text\"] }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        80
+      ],
+      "id": "38181fa3-1d0c-45e7-a58f-4176a47826bb",
+      "name": "Send a message",
+      "webhookId": "47117bca-9ae9-4b3a-804b-989db9b2d16b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uQlQHD3oEslf0JjW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cfdb57a8-c6e8-422c-b34c-8c3a39bcfc22",
+              "leftValue": "={{$json[\"snippet\"]}}\n",
+              "rightValue": "meeting",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "4d8c7854-b753-44c3-b225-8b93043c46be",
+              "leftValue": "={{$json[\"snippet\"]}}\n",
+              "rightValue": "interview",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "1f7e245e-14cf-4f41-9d4d-a979ed011481",
+              "leftValue": "={{$json[\"snippet\"]}}",
+              "rightValue": "call",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "1384c406-3950-442e-9dff-3dfba6a539ee",
+              "leftValue": "={{$json[\"snippet\"]}}",
+              "rightValue": "schedule",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "9b8a27b6-01f4-4542-8507-7ac00cfc49b1",
+              "leftValue": "={{$json[\"snippet\"]}}",
+              "rightValue": "availability",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        144
+      ],
+      "id": "a112a698-7165-463a-a332-dadd01ba791c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://inbox-ai-webhook.onrender.com/triage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{$json[\"Subject\"]}}"
+            },
+            {
+              "name": "body_text",
+              "value": "={{$json[\"snippet\"]}}"
+            },
+            {
+              "name": "from_email",
+              "value": "{{$json[\"From\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 12000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -48,
+        208
+      ],
+      "id": "ecb34003-b44d-471e-8c9b-335acd33e5a4",
+      "name": "HTTP Request Sending Email",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://inbox-ai-webhook.onrender.com/incoming-email",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from_email",
+              "value": "={{$json[\"From\"]}}"
+            },
+            {
+              "name": "subject",
+              "value": "={{$json[\"Subject\"]}}"
+            },
+            {
+              "name": "body_text",
+              "value": "={{$json[\"snippet\"]}}"
+            },
+            {
+              "name": "message_id",
+              "value": "=={{$json['messageId']}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -64,
+        -48
+      ],
+      "id": "9531c2bc-c026-49fa-807d-605d5c1ff373",
+      "name": "HTTP Request Incoming Email"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Incoming Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request Sending Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Sending Email": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "730a0f8d-11b6-4cb4-a13f-1a72dbe3db30",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ec8b9bd1a29970d64c009c4a0bcf22e2681a83b281786491333930f8f07d7035"
+  },
+  "id": "mpJnSCgX49zerxS9",
+  "tags": []
+}
